@@ -66,7 +66,7 @@ public class AutomateAsyncExecutor implements BackupExecutor {
                             BiConsumer<IOException, SimplePair<Path>> pathsErrorStrategy) {
         // Declaring new ExecutorService:
         executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        // Declaring tasks dictionary:
+        // Declaring task dictionary:
         Map<copyDevices, CompletableFuture<R>> executorList = new HashMap<>();
 
         // Exception strategy when backupStrategy throw any exceptions:
@@ -95,20 +95,20 @@ public class AutomateAsyncExecutor implements BackupExecutor {
         copyDevices copyDevices;
         for (SimplePair<Path> pathSet : backupPaths) {
             try {
-                // Declaring devices of current path set:
+                // Declaring devices of the current path set:
                 copyDevices = new copyDevices(pathSet);
                 executorList.compute(copyDevices, (key, val) -> {
                     if (val == null) {
-                        // Creating new subtree and new backup as separated task:
+                        // Creating new subtree and new backup as a separated task:
                         // Also catching any errors thrown from backup instance:
                         return CompletableFuture.supplyAsync(() -> backupStrategy.apply(
                                 key.pathSet.key(), key.pathSet.val()), executor).exceptionally(backupExceptionStrategy);
 
                     } else {
-                        // Queueing new task in existing tree:
+                        // Queueing a new task in an existing tree:
                         return val.thenApply(statistics -> {
                             R backupReturn;
-                            // Invoking backup task and catching any exceptions:
+                            // Invoking a backup task and catching any exceptions:
                             try {
                                 backupReturn = backupStrategy.apply(key.pathSet.key(), key.pathSet.val());
                             } catch (Throwable exc) { backupReturn = backupExceptionStrategy.apply(exc); }
