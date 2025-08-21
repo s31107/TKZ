@@ -210,8 +210,7 @@ public class BackupWindow {
         backupStrategy.addPropertyListener(ListenersTypes.PROGRESS, percentageListener);
         backupStrategy.addPropertyListener(ListenersTypes.FINISH, finishBackupListener);
         // Executing backup:
-        switchWindowStatus();
-        backupStrategy.execute();
+        startButton.doClick();
     }
 
     private void switchWindowStatus() {
