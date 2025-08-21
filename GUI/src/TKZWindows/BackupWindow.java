@@ -12,11 +12,13 @@ import java.awt.event.WindowEvent;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ResourceBundle;
 
 public class BackupWindow {
     private final static int clockRefreshTime = 1000;
+    private final static DateTimeFormatter clockFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
     private final static double xWindowPattern = 1680.;
     private final static double yWindowPattern = 1050.;
     private final static double xWindowProp = 800.;
@@ -217,7 +219,6 @@ public class BackupWindow {
         if (windowStatus) {
             clockTimer.stop();
         } else {
-
             resetClock();
             clockTimer.start();
         }
@@ -232,13 +233,13 @@ public class BackupWindow {
         // Incrementing clock of specified milliseconds:
         clock = clock.plus(clockRefreshTime, ChronoUnit.MILLIS);
         // Updating gui:
-        labelClock.setText(clock.toString());
+        labelClock.setText(clock.format(clockFormatter));
     }
 
     private void resetClock() {
         // Resetting the clock:
         clock = LocalTime.of(0, 0, 0);
         // Updating GUI:
-        labelClock.setText(clock.toString());
+        labelClock.setText(clock.format(clockFormatter));
     }
 }
