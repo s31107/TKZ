@@ -49,7 +49,7 @@ public class ConsoleLog extends JPanel {
         add(searchPanel);
         // Hiding search panel:
         searchPanel.setVisible(false);
-        // Adding key triggers to show/close search panel:
+        // Adding key triggers to a show/close search panel:
         // Console log area triggers:
         jTextArea.addKeyListener(new KeyAdapter() {
             @Override
@@ -91,7 +91,7 @@ public class ConsoleLog extends JPanel {
             public void mouseReleased(MouseEvent e) { showPopup(e); }
 
             private void showPopup(MouseEvent e) {
-                // Skipping if not opening popup menu:
+                // Skipping if not an opening popup menu:
                 if (!e.isPopupTrigger()) { return; }
                 // Enabling/Disabling copy menu item if no text is selected:
                 consoleCopyItem.setEnabled(
@@ -120,7 +120,7 @@ public class ConsoleLog extends JPanel {
             public void mouseReleased(MouseEvent e) { showPopup(e); }
 
             private void showPopup(MouseEvent e) {
-                // Skipping if not opening popup menu:
+                // Skipping if not an opening popup menu:
                 if (!e.isPopupTrigger()) { return; }
                 // Enabling/Disabling copy and cut menu items if no text is selected:
                 if (searchField.getSelectedText() != null && !searchField.getSelectedText().isEmpty()) {
@@ -148,9 +148,9 @@ public class ConsoleLog extends JPanel {
     }
 
     private void openSearchPanel() {
-        // Resetting last saved index:
+        // Resetting the last saved index:
         lastIndexOfHighlighted = 0;
-        // Showing panel:
+        // Showing the panel:
         searchPanel.setVisible(true);
         // Searching current phrase:
         String searchContent = searchField.getText();
@@ -206,14 +206,14 @@ public class ConsoleLog extends JPanel {
         jTextArea.setText("");
         // Clearing search field:
         searchField.setText("");
-        // Closing search panel if visible:
+        // Closing the search panel if visible:
         if (searchPanel.isVisible()) { closeSearchPanel(); }
     }
 
     public void addLine(String line) {
-        // If search dialog is open:
+        // If the search dialog is open:
         if (searched) {
-            // Declaring end index of old text:
+            // Declaring end index of an old text:
             int startOffset = jTextArea.getDocument().getLength();
             // Adding specified line:
             jTextArea.append(line);

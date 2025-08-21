@@ -103,7 +103,7 @@ public class BackupWindow {
                     jFrame.dispose();
                     System.exit(0);
                 };
-                // If window is not working close:
+                // If a window is not working close:
                 if (!windowStatus) { closeStrategy.run(); }
                 // Asking for interrupting backup:
                 if (JOptionPane.showConfirmDialog(jFrame, rBundle.getString("closeConfirmation"),
@@ -116,7 +116,7 @@ public class BackupWindow {
                         // Waiting for finish backup:
                         backupStrategy.join();
                     } catch (InterruptedException exc) { throw new RuntimeException(exc); }
-                    // Closing window:
+                    // Closing the window:
                     closeStrategy.run();
                 }
             }
@@ -137,7 +137,7 @@ public class BackupWindow {
             jFrame.setVisible(false);
             // Clearing console:
             consoleLog.clear();
-            // Showing parent window:
+            // Showing a parent window:
             rWindow.show();
         });
         stopButton.addActionListener(_ -> {
@@ -151,7 +151,7 @@ public class BackupWindow {
         startButton.addActionListener(_ -> {
             // Resetting stop flag:
             isStopped = false;
-            // Switching window to running state:
+            // Switching a window to running state:
             switchWindowStatus();
             // Executing backup:
             backupStrategy.execute();
@@ -174,7 +174,7 @@ public class BackupWindow {
             }
             // Switching window to not running state:
             switchWindowStatus();
-            // Displaying message about backup finish state:
+            // Displaying a message about backup finish state:
             if (isStopped) {
                 JOptionPane.showMessageDialog(jFrame, rBundle.getString("interruptedBackup"),
                         rBundle.getString("error"), JOptionPane.ERROR_MESSAGE);
@@ -190,7 +190,7 @@ public class BackupWindow {
 
     private void shutdownStrategy() {
         try {
-            // Starting new shutdown process:
+            // Starting a new shutdown process:
             ProcessBuilder processBuilder = new ProcessBuilder("systemctl", "poweroff");
             processBuilder.start();
         } catch (IOException exc) { throw new RuntimeException(exc); }
@@ -221,7 +221,7 @@ public class BackupWindow {
             resetClock();
             clockTimer.start();
         }
-        // Switching window to running/not running:
+        // Switching a window to running/not running:
         startButton.setEnabled(windowStatus);
         returnButton.setEnabled(windowStatus);
         stopButton.setEnabled(!windowStatus);
@@ -236,7 +236,7 @@ public class BackupWindow {
     }
 
     private void resetClock() {
-        // Resetting clock:
+        // Resetting the clock:
         clock = LocalTime.of(0, 0, 0);
         // Updating GUI:
         labelClock.setText(clock.toString());

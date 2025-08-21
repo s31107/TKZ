@@ -42,10 +42,10 @@ public class PathJTable extends JTable {
             // Computing pointing row:
             int row = PathJTable.this.rowAtPoint(e.getPoint());
             if (row == -1) { return; }
-            // Computing bottom frame of row:
+            // Computing bottom frame of the row:
             int rowBottom = PathJTable.this.getCellRect(row, 0, true).y
                     + PathJTable.this.getRowHeight(row);
-            // Changing type of cursor if cursor points to bottom frame of row:
+            // Changing a type of cursor if cursor points to the bottom frame of row:
             PathJTable.this.setCursor(Math.abs(e.getY() - rowBottom) < cursorRowDifference ?
                     Cursor.getPredefinedCursor(Cursor.S_RESIZE_CURSOR) : Cursor.getDefaultCursor());
         }
@@ -73,7 +73,7 @@ public class PathJTable extends JTable {
             // Computing pointing row:
             int row = PathJTable.this.rowAtPoint(e.getPoint());
             if (row == -1) { return; }
-            // Computing bottom frame of row:
+            // Computing bottom frame of the row:
             int rowBottom = PathJTable.this.getCellRect(
                     row, 0, true).y + PathJTable.this.getRowHeight(row);
            // Initializing dragging row:
@@ -111,11 +111,11 @@ public class PathJTable extends JTable {
             panel.add(Box.createHorizontalGlue());
             panel.add(button);
             // Button connection:
-            button.addActionListener(e -> getPath());
+            button.addActionListener(_ -> getPath());
         }
 
         private void getPath() {
-            // Placing path from file chooser to text field:
+            // Placing a path from file chooser to text field:
             if (fileChooser.showOpenDialog(panel) == JFileChooser.APPROVE_OPTION) {
                 textField.setText(fileChooser.getSelectedFile().getAbsolutePath());
             } fireEditingStopped();
@@ -147,12 +147,12 @@ public class PathJTable extends JTable {
         removeMenuItem = new JMenuItem(bundle.getString("remove"), iconsManager.getIcon("remove"));
         popupMenu.add(addMenuItem);
         popupMenu.add(removeMenuItem);
-        addMenuItem.addActionListener(e -> addRow());
-        removeMenuItem.addActionListener(e -> {
+        addMenuItem.addActionListener(_ -> addRow());
+        removeMenuItem.addActionListener(_ -> {
             int row;
             while ((row = getSelectedRow()) >= 0) { removeRow(row); }
         });
-        // Setting table model:
+        // Setting a table model:
         // Disabling number column edition:
         tableModel = new DefaultTableModel() {
             @Override
@@ -192,7 +192,7 @@ public class PathJTable extends JTable {
 
     public void popupMenuManagement(MouseEvent event) {
         popupMenu.show(event.getComponent(), event.getX(), event.getY());
-        // Disabling remove button if no row is selected:
+        // Disabling the remove button if no row is selected:
         removeMenuItem.setEnabled(getSelectedRow() != -1);
     }
 
@@ -215,11 +215,11 @@ public class PathJTable extends JTable {
     public Optional<List<SimplePair<String>>> getPaths() {
         List<SimplePair<String>> values = new ArrayList<>();
         for (int row = 0; row < tableModel.getRowCount(); ++row) {
-            // Creating a pair of source path - destination path;
+            // Creating a pair of source path - destination paths;
             SimplePair<String> pair = new SimplePair<>(Objects.requireNonNullElse(
                     (String) tableModel.getValueAt(row, 1), ""), Objects.requireNonNullElse((String)
                     tableModel.getValueAt(row, 2), ""));
-            // If row is empty:
+            // If the row is empty:
             if (pair.key().isEmpty() && pair.val().isEmpty()) { continue; }
             // If paths are incomplete:
             else if (pair.key().isEmpty() || pair.val().isEmpty()) { return Optional.empty(); }
@@ -230,7 +230,7 @@ public class PathJTable extends JTable {
     public void setPaths(List<SimplePair<String>> paths) {
         // Clearing table:
         tableModel.setRowCount(0);
-        // Adding every row to table:
+        // Adding every row to the table:
         paths.forEach(row -> addRow(row.key(), row.val()));
     }
 }

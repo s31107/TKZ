@@ -17,7 +17,7 @@ public enum StatisticsEnum {
     StatisticsEnum(String bundleKeyArg, boolean isError) {
         // Key from Resource Bundle:
         bundleKey = bundleKeyArg;
-        // Classifies enum records if it's error statistic or not:
+        // Classifies enum records if it's an error statistic or not:
         errorStatistic = isError;
     }
     // Getters:

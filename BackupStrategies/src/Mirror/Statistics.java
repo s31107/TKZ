@@ -30,7 +30,7 @@ public class Statistics {
         return statistics1;
     }
     public String getMessage(StatisticsEnum type) {
-        // Getting message from resource bundle from specified type and substituting statistic:
+        // Getting a message from resource bundle from specified type and substituting statistic:
         return resourceBundle.getString(type.getMessageName()).formatted(stats[type.ordinal()]);
     }
 

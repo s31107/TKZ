@@ -33,7 +33,7 @@ public class SeparatorStyleFiles implements ProfileManager {
     private static boolean isCorrectFormat(List<String> lines) {
         // Determines if file content is suitable for usage:
         for (String line : lines) {
-            // Checking if file content matches to specified regex pattern:
+            // Checking if file content matches to a specified regex pattern:
             Matcher matcher = fileContentPattern.matcher(line);
             if (!matcher.matches()) { return false; }
         } return true;
@@ -102,11 +102,11 @@ public class SeparatorStyleFiles implements ProfileManager {
 
     @Override
     public Optional<File> save(List<SimplePair<String>> paths, Map<String, String> attributes) throws IOException {
-        // Checking if there is a need to enter file for save:
+        // Checking if there is a need to enter a file for save:
         if (usingFile != null) {
             // Writing content to file:
             writeStrategy(usingFile, paths, attributes);
-            // Returning file where the content has been written:
+            // Returning a file where the content has been written:
             return Optional.of(usingFile);
         } else { return saveAs(paths, attributes); }
     }
@@ -115,7 +115,7 @@ public class SeparatorStyleFiles implements ProfileManager {
     public Optional<File> saveAs(List<SimplePair<String>> paths, Map<String, String> attributes) throws IOException {
         // Opening File Chooser:
         int rValue = fileChooser.showOpenDialog(null);
-        // If user select any file:
+        // If a user selects any file:
         if (rValue == JFileChooser.APPROVE_OPTION) {
             // Writing content to the file:
             writeStrategy(fileChooser.getSelectedFile(), paths, attributes);
@@ -125,14 +125,14 @@ public class SeparatorStyleFiles implements ProfileManager {
 
     @Override
     public Optional<ExtendedPair<List<SimplePair<String>>, Map<String, String>>> openLastUsedFile() {
-        // Checking if file log exists:
+        // Checking if the file log exists:
         if (lastUsedFileLog.isFile()) {
             try (BufferedReader reader = new BufferedReader(new FileReader(lastUsedFileLog))) {
                 // Converting file content to Path:
                 Path defaultPath = Path.of(Objects.requireNonNullElse(reader.readLine(), ""));
                 // Checking if log is up to date:
                 if (Files.isRegularFile(defaultPath)) {
-                    // Extracting content from file:
+                    // Extracting content from a file:
                     ExtendedPair<List<SimplePair<String>>, Map<String, String>> fileContent = getFileContent(
                             defaultPath);
                     // Setting default file:
@@ -151,7 +151,7 @@ public class SeparatorStyleFiles implements ProfileManager {
         if (content.isEmpty()) { return true; }
         else if (usingFile == null) { return false; }
         try {
-            // Checking if specified content is the same as content from file:
+            // Checking if specified content is the same as content from a file:
             return new ExtendedPair<>(content, attributes).equals(getFileContent(usingFile.toPath()));
         } catch (IOException | FileFormatException exc) { return false; }
     }

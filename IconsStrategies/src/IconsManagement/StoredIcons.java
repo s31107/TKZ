@@ -9,7 +9,7 @@ public class StoredIcons implements IconsManager {
 
     @Override
     public ImageIcon getIcon(String name) {
-        // Preparing path for specified icon:
+        // Preparing a path for specified icon:
         URL url = getClass().getResource("/icons/" + name);
         // Checking if icon exists:
         if (url == null) { throw new RuntimeException("Icon: " + name + " not found!"); }

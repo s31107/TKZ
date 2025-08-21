@@ -225,7 +225,7 @@ public class MainWindow {
                 // Invoking proper method from profileManager:
                 Optional<File> file = isSaveAs ? profileManager.saveAs(paths, attr)
                         : profileManager.save(paths, attr);
-                // Displaying message about success:
+                // Displaying a message about success:
                 file.ifPresent(path -> JOptionPane.showMessageDialog(parent,
                         contentsResourceBundle.getString("saveSuccess").formatted(path.getName()),
                         contentsResourceBundle.getString("success"), JOptionPane.INFORMATION_MESSAGE));
@@ -243,12 +243,12 @@ public class MainWindow {
 
     private void openProfile(PathJTable jTable, JCheckBox checkBox,
                              DefaultComboBoxModel<String> comboBoxModel, Component parent) {
-        // Getting content from window:
+        // Getting content from a window:
         Optional<List<SimplePair<String>>> content = jTable.getPaths();
         String backupType = (String) Objects.requireNonNull(comboBoxModel.getSelectedItem());
         Map<String, String> attr = Map.of(shutdownAttributeName, Boolean.toString(checkBox.isSelected()),
                 backupStrategyAttributeName, backupType);
-        // Checking if content is equals to saved in file:
+        // Checking if content is equals to save in file:
         if (content.isEmpty() || !profileManager.isContentIdentical(content.get(), attr)) {
             // Asking user for saving modified content:
             int choice = JOptionPane.showConfirmDialog(parent,
@@ -260,11 +260,11 @@ public class MainWindow {
             else if (choice == JOptionPane.CANCEL_OPTION) { return; }
         }
         try {
-            // Opening selected file and prints it's content to window:
+            // Opening a selected file and prints it's content to window:
             profileManager.open().ifPresent(pair -> setContentFromProfileManager(
                     pair, jTable, comboBoxModel, checkBox));
         } catch (FileFormatException exc) {
-            // Exceptions to selecting wrong file:
+            // Exceptions to selecting a wrong file:
             JOptionPane.showMessageDialog(parent, contentsResourceBundle.getString("wrongFileSelection"),
                     contentsResourceBundle.getString("error"), JOptionPane.ERROR_MESSAGE);
         } catch (IOException exc) {
@@ -282,7 +282,7 @@ public class MainWindow {
         jTable.setPaths(pair.key());
         // Setting backup strategy combobox:
         String item = pair.val().get(backupStrategyAttributeName);
-        // Checking if combobox contain backup strategy from file:
+        // Checking if combobox contain backup strategy from a file:
         if (comboBoxModel.getIndexOf(item) != -1) { comboBoxModel.setSelectedItem(item); }
         // Setting shutdown checkbox:
         checkBox.setSelected(Boolean.parseBoolean(pair.val().get(shutdownAttributeName)));
