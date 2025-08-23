@@ -156,8 +156,8 @@ public class MirrorBackup implements BackupStrategy {
             logger.log(Level.WARNING, "Comparing types of two files: %s, %s".formatted(srcFile, dstFile), exc);
             return false;
         }
-        return srcAttribs.isRegularFile() == dstAttribs.isRegularFile() || srcAttribs.isSymbolicLink() == dstAttribs.isSymbolicLink()
-                || srcAttribs.isOther() == dstAttribs.isOther();
+        return srcAttribs.isRegularFile() == dstAttribs.isRegularFile() || srcAttribs.isSymbolicLink()
+                == dstAttribs.isSymbolicLink() || srcAttribs.isOther() == dstAttribs.isOther();
     }
 
     private Statistics backup(Path sourcePath, Path destinationPath,
