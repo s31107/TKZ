@@ -3,6 +3,7 @@ package TKZWindows;
 import API.BackupStrategy;
 import API.IconsManager;
 import CustomComponents.ConsoleLog;
+import CustomComponents.ShutdownDialog;
 import Utils.ListenersTypes;
 
 import javax.swing.*;
@@ -33,6 +34,7 @@ public class BackupWindow {
     private Timer clockTimer;
     private boolean windowStatus;
     private boolean isStopped;
+    private final ShutdownDialog shutdownDialog;
     protected boolean isShutdown;
     protected final MainWindow rWindow;
     protected final JFrame jFrame;
@@ -49,6 +51,7 @@ public class BackupWindow {
         rBundle = resourceBundle;
         rWindow = returnWindow;
         jFrame = new JFrame();
+        shutdownDialog = new ShutdownDialog(jFrame, resourceBundle, this::shutdownStrategy);
         windowStatus = false;
         isStopped = false;
         // Building gui:
@@ -169,18 +172,19 @@ public class BackupWindow {
         clockTimer = new Timer(clockRefreshTime, _ -> updateClock());
         // Backup finish strategy:
         finishBackupListener = evt -> SwingUtilities.invokeLater(() -> {
-            // Shutting down computer if necessary:
-            if (isShutdown && !isStopped) {
-                shutdownStrategy();
-                return;
-            }
+            // Storing value if some errors occurred in backup:
+            boolean isSuccessful = (boolean) evt.getNewValue();
             // Switching window to not running state:
             switchWindowStatus();
             // Displaying a message about backup finish state:
             if (isStopped) {
                 JOptionPane.showMessageDialog(jFrame, rBundle.getString("interruptedBackup"),
                         rBundle.getString("error"), JOptionPane.ERROR_MESSAGE);
-            } else if ((boolean) evt.getNewValue()) {
+            } else if (isShutdown) {
+                // Switching off clause:
+                shutdownDialog.showDialog(!isSuccessful);
+            }
+            else if (isSuccessful) {
                 JOptionPane.showMessageDialog(jFrame, rBundle.getString("backupSuccessful"),
                         rBundle.getString("success"), JOptionPane.INFORMATION_MESSAGE);
             } else {
