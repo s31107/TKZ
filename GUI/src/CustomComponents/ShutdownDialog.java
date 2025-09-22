@@ -7,8 +7,8 @@ import java.util.ResourceBundle;
 
 public class ShutdownDialog {
     private final static int clockRefreshTime = 1000;
-    private final static short errorTimeLeft = 20;
-    private final static short successTimeLeft = 10;
+    private final static short errorTimeLeft = 15;
+    private final static short successTimeLeft = 5;
     private final Timer timer;
     private final Component parentComponent;
     private final JLabel messageLabel;
@@ -43,11 +43,11 @@ public class ShutdownDialog {
         updateMessage(isError, timeElapsed);
         // Constructing timer variable:
         ActionListener actionListener = _ -> {
-            updateMessage(isError, --timeElapsed);
             if (timeElapsed == 0) {
                 timer.stop();
                 sStrategy.run();
             }
+            updateMessage(isError, --timeElapsed);
         };
         timer.addActionListener(actionListener);
         timer.start();
