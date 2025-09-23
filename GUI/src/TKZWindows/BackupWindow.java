@@ -105,6 +105,10 @@ public class BackupWindow {
             public void windowClosing(WindowEvent e) {
                 Runnable closeStrategy = () -> {
                     // Closing application strategy:
+                    try {
+                        // Waiting for finish backup and disposing backup:
+                        backupStrategy.joinAndDispose();
+                    } catch (InterruptedException exc) { throw new RuntimeException(exc); }
                     jFrame.dispose();
                     System.exit(0);
                 };
@@ -115,12 +119,8 @@ public class BackupWindow {
                         rBundle.getString("question"), JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
                     // Stopping executor:
                     stopButton.doClick();
-                    try {
-                        // Changing cursor:
-                        jFrame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-                        // Waiting for finish backup:
-                        backupStrategy.join();
-                    } catch (InterruptedException exc) { throw new RuntimeException(exc); }
+                    // Changing cursor:
+                    jFrame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
                     // Closing the window:
                     closeStrategy.run();
                 }
@@ -138,6 +138,10 @@ public class BackupWindow {
             backupStrategy.removePropertyListener(ListenersTypes.CONSOLE, consoleLogListener);
             backupStrategy.removePropertyListener(ListenersTypes.PROGRESS, percentageListener);
             backupStrategy.removePropertyListener(ListenersTypes.FINISH, finishBackupListener);
+            // Disposing backup:
+            try {
+                backupStrategy.joinAndDispose();
+            } catch (InterruptedException exc) { throw new RuntimeException(exc); }
             // Hiding window:
             jFrame.setVisible(false);
             // Clearing console:

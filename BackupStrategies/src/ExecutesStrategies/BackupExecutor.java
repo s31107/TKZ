@@ -13,5 +13,5 @@ public interface BackupExecutor {
     <R> void execute(List<SimplePair<Path>> backupPaths, BiFunction<Path, Path, R> backupStrategy,
                      BiFunction<R, R, R> mergeStrategy, Consumer<R> finishStrategy,
                      BiConsumer<IOException, SimplePair<Path>> pathsErrorStrategy);
-    void join() throws InterruptedException;
+    void joinAndShutdown() throws InterruptedException;
 }

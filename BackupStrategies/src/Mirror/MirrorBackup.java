@@ -23,7 +23,7 @@ import java.util.logging.Logger;
 public class MirrorBackup implements BackupStrategy {
     private final PropertyChangeSupport propertyChange;
     private List<SimplePair<Path>> backupPaths;
-    private final BackupExecutor executor;
+    private BackupExecutor executor;
     private final LongAdder pathSizeSum;
     private long fileSizes;
     private final AtomicBoolean isInterrupted;
@@ -44,8 +44,6 @@ public class MirrorBackup implements BackupStrategy {
         // Errors logger:
         logger = Logger.getLogger("BackupStrategies.Mirror.MirrorBackup");
         logger.setLevel(Level.ALL);
-        // Backup execution strategy:
-        executor = new AutomateAsyncExecutor(logger);
     }
 
     @Override
@@ -77,6 +75,11 @@ public class MirrorBackup implements BackupStrategy {
             fileHandler = new FileHandler(loggerFileName, false);
         } catch (IOException exc) { throw new RuntimeException(exc); }
         logger.addHandler(fileHandler);
+        // Creating new executor if necessary:
+        if (executor == null) {
+            // Backup execution strategy:
+            executor = new AutomateAsyncExecutor(logger);
+        }
         // Executing backup using specified executor with logging error strategy:
         executor.execute(backupPaths, (srcPath, _) -> getPathSize(srcPath), Long::sum, sumSizes -> {
             fileSizes = sumSizes;
@@ -334,9 +337,12 @@ public class MirrorBackup implements BackupStrategy {
     }
 
     @Override
-    public void join() throws InterruptedException {
+    public void joinAndDispose() throws InterruptedException {
+        if (executor == null) { return; }
         // Joining executor:
-        executor.join();
+        executor.joinAndShutdown();
+        // Saving information of disposal:
+        executor = null;
     }
 
     @Override

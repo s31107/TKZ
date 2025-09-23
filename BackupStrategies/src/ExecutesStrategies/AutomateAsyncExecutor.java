@@ -19,7 +19,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class AutomateAsyncExecutor implements BackupExecutor {
-    private ExecutorService executor;
+    private final ExecutorService executor;
     protected final Logger logger;
 
     // Simple pair of paths set (source path, destination path) and devices where paths are stored:
@@ -51,10 +51,15 @@ public class AutomateAsyncExecutor implements BackupExecutor {
     public AutomateAsyncExecutor(Logger log) {
         // Global variables:
         logger = log;
+        // Declaring new ExecutorService:
+        executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     }
 
-    public void join() throws InterruptedException {
-        // Waiting forever for backup finish:
+    @Override
+    public void joinAndShutdown() throws InterruptedException {
+        // Disposing executor:
+        executor.shutdownNow();
+        // Waiting forever for backup to finish:
         while (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
             logger.log(Level.INFO, "Joining executor...");
         }
@@ -64,11 +69,8 @@ public class AutomateAsyncExecutor implements BackupExecutor {
     public <R> void execute(List<SimplePair<Path>> backupPaths, BiFunction<Path, Path, R> backupStrategy,
                             BiFunction<R, R, R> mergeStrategy, Consumer<R> finishStrategy,
                             BiConsumer<IOException, SimplePair<Path>> pathsErrorStrategy) {
-        // Declaring new ExecutorService:
-        executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
         // Declaring task dictionary:
         Map<copyDevices, CompletableFuture<R>> executorList = new HashMap<>();
-
         // Exception strategy when backupStrategy throw any exceptions:
         Function<Throwable, R> backupExceptionStrategy = exc -> {
             logger.log(Level.SEVERE, "Exception thrown from backup instance!", exc);
@@ -125,11 +127,8 @@ public class AutomateAsyncExecutor implements BackupExecutor {
         // Merging all CompletableFutures from executorList into one CompletableFuture using mergeFunction:
         Optional<CompletableFuture<R>> rFuture = executorList.values().stream().reduce(
                 (future1, future2) -> future1.thenCombine(future2, mergeApply));
-        // Disposing ExecutorService and cleaning after backup:
-        rFuture.ifPresentOrElse(future -> future.thenAccept(finishAccept).thenRun(
-                executor::shutdown), () -> {
-            finishAccept.accept(null);
-            executor.shutdown();
-        });
+        // Executing finish strategy:
+        rFuture.ifPresentOrElse(future -> future.thenAccept(finishAccept),
+                () -> finishAccept.accept(null));
     }
 }

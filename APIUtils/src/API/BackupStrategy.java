@@ -18,7 +18,7 @@ public interface BackupStrategy {
     void addPropertyListener(ListenersTypes type, PropertyChangeListener listener);
     void removePropertyListener(ListenersTypes type, PropertyChangeListener listener);
     // Waiting for backup to finish (not interrupting work):
-    void join() throws InterruptedException;
+    void joinAndDispose() throws InterruptedException;
     // Getting backup name:
     String getBackupType();
 }
