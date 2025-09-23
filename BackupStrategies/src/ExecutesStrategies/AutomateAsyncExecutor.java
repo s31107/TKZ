@@ -19,7 +19,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class AutomateAsyncExecutor implements BackupExecutor {
-    private final ExecutorService executor;
+    private ExecutorService executor;
     protected final Logger logger;
 
     // Simple pair of paths set (source path, destination path) and devices where paths are stored:
@@ -51,8 +51,6 @@ public class AutomateAsyncExecutor implements BackupExecutor {
     public AutomateAsyncExecutor(Logger log) {
         // Global variables:
         logger = log;
-        // Declaring new ExecutorService:
-        executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     }
 
     @Override
@@ -63,12 +61,18 @@ public class AutomateAsyncExecutor implements BackupExecutor {
         while (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
             logger.log(Level.INFO, "Joining executor...");
         }
+        // Removing reference to executor:
+        executor = null;
     }
 
     @Override
     public <R> void execute(List<SimplePair<Path>> backupPaths, BiFunction<Path, Path, R> backupStrategy,
                             BiFunction<R, R, R> mergeStrategy, Consumer<R> finishStrategy,
                             BiConsumer<IOException, SimplePair<Path>> pathsErrorStrategy) {
+        // Declaring new ExecutorService if it doesn't exist:
+        if (executor == null) {
+            executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        }
         // Declaring task dictionary:
         Map<copyDevices, CompletableFuture<R>> executorList = new HashMap<>();
         // Exception strategy when backupStrategy throw any exceptions:

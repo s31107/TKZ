@@ -38,6 +38,7 @@ public class BackupWindow {
     private boolean windowStatus;
     private boolean isStopped;
     private final ShutdownDialog shutdownDialog;
+    private volatile boolean isClosingWindow;
     protected boolean isShutdown;
     protected final MainWindow rWindow;
     protected final JFrame jFrame;
@@ -57,6 +58,8 @@ public class BackupWindow {
         shutdownDialog = new ShutdownDialog(jFrame, resourceBundle, this::shutdownStrategy);
         windowStatus = false;
         isStopped = false;
+        // Flag informing is window closing (For avoiding deadlock with InvokeAndWait() method in PropertyChange):
+        isClosingWindow = false;
         // Building gui:
         execGui();
     }
@@ -71,7 +74,7 @@ public class BackupWindow {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         // JTextArea:
-        ConsoleLog consoleLog = new ConsoleLog(iManager, rBundle);
+        ConsoleLog consoleLog = new ConsoleLog(iManager, rBundle, () -> windowStatus);
         mainPanel.add(consoleLog);
         // Clock:
         JPanel clockPanel = new JPanel();
@@ -103,31 +106,6 @@ public class BackupWindow {
         jFrame.add(mainPanel);
         // Closing window strategy:
         jFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        jFrame.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                Runnable closeStrategy = () -> {
-                    // Closing application strategy:
-                    try {
-                        // Waiting for finish backup and disposing backup:
-                        backupStrategy.joinAndDispose();
-                    } catch (InterruptedException exc) { throw new RuntimeException(exc); }
-                    System.exit(0);
-                };
-                // If a window is not working close:
-                if (!windowStatus) { closeStrategy.run(); }
-                // Asking for interrupting backup:
-                if (JOptionPane.showConfirmDialog(jFrame, rBundle.getString("closeConfirmation"),
-                        rBundle.getString("question"), JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-                    // Stopping executor:
-                    stopButton.doClick();
-                    // Changing cursor:
-                    jFrame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-                    // Closing the window:
-                    closeStrategy.run();
-                }
-            }
-        });
         mainPanel.setBorder(
                 BorderFactory.createEmptyBorder(yWindowBorder, xWindowBorder, yWindowBorder, xWindowBorder));
         jFrame.setMinimumSize(new Dimension((int) (Toolkit.getDefaultToolkit().getScreenSize().width * xWindowProp
@@ -178,6 +156,8 @@ public class BackupWindow {
         clockTimer = new Timer(clockRefreshTime, _ -> updateClock());
         // Backup finish strategy:
         finishBackupListener = evt -> SwingUtilities.invokeLater(() -> {
+            // Rejecting updating gui if window is closing:
+            if (isClosingWindow) { return; }
             // Storing value if some errors occurred in backup:
             boolean isSuccessful = (boolean) evt.getNewValue();
             // Switching window to not running state:
@@ -198,11 +178,43 @@ public class BackupWindow {
                         rBundle.getString("error"), JOptionPane.ERROR_MESSAGE);
             }
         });
+        jFrame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                Runnable closeStrategy = () -> {
+                    // Closing application strategy:
+                    try {
+                        // Waiting for finish backup and disposing backup:
+                        backupStrategy.joinAndDispose();
+                    } catch (InterruptedException exc) { throw new RuntimeException(exc); }
+                    System.exit(0);
+                };
+                // If a window is not working close:
+                if (!windowStatus) { closeStrategy.run(); }
+                // Asking for interrupting backup:
+                if (JOptionPane.showConfirmDialog(jFrame, rBundle.getString("closeConfirmation"),
+                        rBundle.getString("question"), JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                    // Setting closing window flag:
+                    isClosingWindow = true;
+                    // Stopping clockTimer:
+                    clockTimer.stop();
+                    // Stopping executor:
+                    stopButton.doClick();
+                    // Changing cursor:
+                    jFrame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                    // Closing the window:
+                    closeStrategy.run();
+                }
+            }
+        });
     }
 
     private PropertyChangeListener updateGUIListenerFactory(Consumer<PropertyChangeEvent> updateGUIStrategy) {
         return evt -> {
             try {
+                // Rejecting updating gui if window is closing:
+                if (isClosingWindow) { return; }
+                // Checking if caller is EDT, and scheduling task:
                 if (SwingUtilities.isEventDispatchThread()) {
                     updateGUIStrategy.accept(evt);
                 } else {

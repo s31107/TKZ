@@ -3,29 +3,27 @@ package CustomComponents;
 import API.IconsManager;
 
 import javax.swing.*;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.DefaultHighlighter;
-import javax.swing.text.Highlighter;
+import javax.swing.text.*;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.*;
 import java.util.ResourceBundle;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static javax.swing.text.Highlighter.Highlight;
 
 public class ConsoleLog extends JPanel {
+    private static final int maxLength = 1000;
     protected final JTextArea jTextArea;
     protected final JPanel searchPanel;
     protected final JTextField searchField;
     private int lastIndexOfHighlighted;
-    private boolean searched;
 
-    public ConsoleLog(IconsManager iconsManager, ResourceBundle resourceBundle) {
-        // Variable which informs whether search has been made:
-        searched = false;
+    public ConsoleLog(IconsManager iconsManager, ResourceBundle resourceBundle,
+                      Supplier<Boolean> isNotOpenSearchBoxStrategy) {
         // Setting global layout:
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         // Console log area:
@@ -60,7 +58,7 @@ public class ConsoleLog extends JPanel {
                     // Hide:
                     if (searchPanel.isVisible()) { closeSearchPanel(); }
                     // Show:
-                    else { openSearchPanel(); }
+                    else { openSearchPanel(isNotOpenSearchBoxStrategy); }
                 }
                 // ESCAPE (hide):
                 else if (searchPanel.isVisible() && e.getKeyCode() == KeyEvent.VK_ESCAPE) { closeSearchPanel(); }
@@ -72,7 +70,7 @@ public class ConsoleLog extends JPanel {
             public void keyPressed(KeyEvent e) {
                 super.keyPressed(e);
                 // ENTER (find):
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) { search(0, searchField.getText()); }
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) { search(searchField.getText()); }
                 // CTRL+F, ESCAPE (close):
                 else if (searchPanel.isVisible() && (e.getKeyCode() == KeyEvent.VK_ESCAPE
                         || (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_F))) { closeSearchPanel(); }
@@ -147,21 +145,19 @@ public class ConsoleLog extends JPanel {
         downButton.addActionListener(_ -> navigate(1));
     }
 
-    private void openSearchPanel() {
+    private void openSearchPanel(Supplier<Boolean> isNotOpen) {
+        if (isNotOpen.get()) { return; }
         // Resetting the last saved index:
         lastIndexOfHighlighted = 0;
         // Showing the panel:
         searchPanel.setVisible(true);
         // Searching current phrase:
-        String searchContent = searchField.getText();
-        search(0, searchContent);
+        search(searchField.getText());
         // Requesting focus:
         searchField.requestFocus();
     }
 
     private void closeSearchPanel() {
-        // Clearing search:
-        searched = false;
         // Hiding panel:
         searchPanel.setVisible(false);
         // Clearing all occurrences:
@@ -183,15 +179,14 @@ public class ConsoleLog extends JPanel {
         jTextArea.requestFocus();
     }
 
-    private void search(int startOffset, String searchText) {
+    private void search(String searchText) {
         if (searchText.isEmpty()) { return; }
-        searched = true;
         Highlighter highlighter = jTextArea.getHighlighter();
         // Clearing all occurrences:
         highlighter.removeAllHighlights();
         // Compiling and matching pattern:
         Pattern pattern = Pattern.compile(Pattern.quote(searchText), Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(jTextArea.getText().substring(startOffset));
+        Matcher matcher = pattern.matcher(jTextArea.getText());
         // Highlighting all occurrences:
         while (matcher.find()) {
             try {
@@ -211,17 +206,18 @@ public class ConsoleLog extends JPanel {
     }
 
     public void addLine(String line) {
-        // If the search dialog is open:
-        if (searched) {
-            // Declaring end index of an old text:
-            int startOffset = jTextArea.getDocument().getLength();
-            // Adding specified line:
-            jTextArea.append(line);
-            // Searching for occurrences in the new line:
-            search(startOffset, searchField.getText());
-        } else {
-            // Adding specified line:
-            jTextArea.append(line);
-        }
+        // Adding specified line:
+        jTextArea.append(line);
+        // Checking if console log hasn't exceeded maximum lines number:
+        try {
+            // Declaring document variables:
+            Document doc = jTextArea.getDocument();
+            Element root = doc.getDefaultRootElement();
+            // Checking lines number:
+            if (root.getElementCount() > maxLength) {
+                // Removing the oldest line:
+                doc.remove(0, root.getElement(0).getEndOffset());
+            }
+        } catch (BadLocationException exc) { throw new RuntimeException(exc); }
     }
 }
