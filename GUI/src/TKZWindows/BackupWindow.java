@@ -10,12 +10,15 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ResourceBundle;
+import java.util.function.Consumer;
 
 public class BackupWindow {
     private final static int clockRefreshTime = 1000;
@@ -109,7 +112,6 @@ public class BackupWindow {
                         // Waiting for finish backup and disposing backup:
                         backupStrategy.joinAndDispose();
                     } catch (InterruptedException exc) { throw new RuntimeException(exc); }
-                    jFrame.dispose();
                     System.exit(0);
                 };
                 // If a window is not working close:
@@ -167,11 +169,11 @@ public class BackupWindow {
         });
         // Listeners:
         // Updating progress bar:
-        percentageListener = evt -> SwingUtilities.invokeLater(
-                () -> jProgressBar.setValue((int) evt.getNewValue()));
+        percentageListener = updateGUIListenerFactory(
+                evt -> jProgressBar.setValue((int) evt.getNewValue()));
         // Adding new logs to console:
-        consoleLogListener = evt -> SwingUtilities.invokeLater(
-                () -> consoleLog.addLine((String) evt.getNewValue()));
+        consoleLogListener = updateGUIListenerFactory(
+                evt -> consoleLog.addLine((String) evt.getNewValue()));
         // Declaring clock timer:
         clockTimer = new Timer(clockRefreshTime, _ -> updateClock());
         // Backup finish strategy:
@@ -196,6 +198,18 @@ public class BackupWindow {
                         rBundle.getString("error"), JOptionPane.ERROR_MESSAGE);
             }
         });
+    }
+
+    private PropertyChangeListener updateGUIListenerFactory(Consumer<PropertyChangeEvent> updateGUIStrategy) {
+        return evt -> {
+            try {
+                if (SwingUtilities.isEventDispatchThread()) {
+                    updateGUIStrategy.accept(evt);
+                } else {
+                    SwingUtilities.invokeAndWait(() -> updateGUIStrategy.accept(evt));
+                }
+            } catch (InterruptedException | InvocationTargetException exc) { throw new RuntimeException(exc); }
+        };
     }
 
     private void shutdownStrategy() {
