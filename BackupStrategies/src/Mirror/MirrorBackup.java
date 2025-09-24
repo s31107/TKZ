@@ -140,9 +140,8 @@ public class MirrorBackup implements BackupStrategy {
         for (StatisticsEnum type : StatisticsEnum.values()) { setConsole(stats.getMessage(type)); }
         // Changing state of running backup property:
         setEndBackup(stats.isExceptionsNotRaised());
-        // Closing file handler:
-        fileHandler.close();
-        logger.removeHandler(fileHandler);
+        // Releasing logger resources:
+        releaseResources();
     }
 
     private boolean isSameFileType(Path srcFile, Path dstFile) {
@@ -337,6 +336,14 @@ public class MirrorBackup implements BackupStrategy {
     public void joinAndDispose() throws InterruptedException {
         // Joining executor:
         executor.joinAndShutdown();
+        // Releasing resources in case finishStrategy() hasn't been invoked:
+        releaseResources();
+    }
+
+    protected void releaseResources() {
+        // Closing file handler:
+        logger.removeHandler(fileHandler);
+        fileHandler.close();
     }
 
     @Override
