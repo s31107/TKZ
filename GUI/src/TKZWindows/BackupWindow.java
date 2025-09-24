@@ -104,7 +104,6 @@ public class BackupWindow {
         mainPanel.add(buttonsPanel);
         // Window configuration:
         jFrame.add(mainPanel);
-        // Closing window strategy:
         jFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         mainPanel.setBorder(
                 BorderFactory.createEmptyBorder(yWindowBorder, xWindowBorder, yWindowBorder, xWindowBorder));
@@ -178,6 +177,7 @@ public class BackupWindow {
                         rBundle.getString("error"), JOptionPane.ERROR_MESSAGE);
             }
         });
+        // Closing window strategy:
         jFrame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
