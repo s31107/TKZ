@@ -1,11 +1,13 @@
 package ApplicationExecution;
 
-import TKZWindows.MainWindow;
+import IconsManagement.StoredIcons;
+import ProfileContentManager.SeparatorStyleFiles;
+import TKZWindows.LoadingScreen;
 
 import javax.swing.*;
 
 public class Main {
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(MainWindow::new);
+        SwingUtilities.invokeLater(() -> new LoadingScreen(StoredIcons.class, SeparatorStyleFiles.class));
     }
 }

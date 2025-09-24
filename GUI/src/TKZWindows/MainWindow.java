@@ -4,8 +4,6 @@ import API.BackupStrategy;
 import API.IconsManager;
 import API.ProfileManager;
 import CustomComponents.PathJTable;
-import IconsManagement.StoredIcons;
-import ProfileContentManager.SeparatorStyleFiles;
 import Utils.BadPathsException;
 import Utils.ExtendedPair;
 import Utils.FileFormatException;
@@ -37,17 +35,15 @@ public class MainWindow {
     protected final IconsManager iconsManager;
     protected final BackupWindow backupWindow;
     protected final JFrame jFrame;
-    protected ServiceLoader<BackupStrategy> backupLoader;
     protected final BackupStrategy[] availableBackups;
 
-    public MainWindow() {
+    public MainWindow(IconsManager iconsManagerStrategy, ProfileManager profileManagerStrategy,
+                      BackupStrategy[] availableBackupsStrategies) {
         // Global variables:
-        backupLoader = ServiceLoader.load(BackupStrategy.class);
-        profileManager = new SeparatorStyleFiles();
-        iconsManager = new StoredIcons();
         jFrame = new JFrame();
-        // Creating instances of Backups Strategies:
-        availableBackups = backupLoader.stream().map(ServiceLoader.Provider::get).toArray(BackupStrategy[]::new);
+        iconsManager = iconsManagerStrategy;
+        profileManager = profileManagerStrategy;
+        availableBackups = availableBackupsStrategies;
         // Loading language resource bundle:
         try {
             contentsResourceBundle = ResourceBundle.getBundle("WindowContents");
