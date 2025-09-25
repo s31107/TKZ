@@ -205,18 +205,18 @@ public class ConsoleLog extends JPanel {
         if (searchPanel.isVisible()) { closeSearchPanel(); }
     }
 
-    public void addLine(String line) {
-        // Adding specified line:
+    public void addLines(String line) {
+        // Adding specified lines:
         jTextArea.append(line);
         // Checking if console log hasn't exceeded maximum lines number:
         try {
             // Declaring document variables:
             Document doc = jTextArea.getDocument();
-            Element root = doc.getDefaultRootElement();
+            int lineCount = jTextArea.getLineCount();
             // Checking lines number:
-            if (root.getElementCount() > maxLength) {
-                // Removing the oldest line:
-                doc.remove(0, root.getElement(0).getEndOffset());
+            if (lineCount > maxLength) {
+                // Removing the oldest lines:
+                doc.remove(0, jTextArea.getLineStartOffset(lineCount - maxLength - 1));
             }
         } catch (BadLocationException exc) { throw new RuntimeException(exc); }
     }

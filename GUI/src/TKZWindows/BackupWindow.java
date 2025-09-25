@@ -17,8 +17,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.Queue;
+import java.util.stream.Collectors;
 
 public class BackupWindow {
     private final static int clockRefreshTime = 1000;
@@ -35,6 +40,7 @@ public class BackupWindow {
     private JButton stopButton;
     private JButton startButton;
     private Timer clockTimer;
+    private Timer flushUpdatesGuiTimer;
     private boolean windowStatus;
     private boolean isStopped;
     private final ShutdownDialog shutdownDialog;
@@ -146,11 +152,39 @@ public class BackupWindow {
         });
         // Listeners:
         // Updating progress bar:
+
+        Queue<Integer> percentageBuffer = new ConcurrentLinkedQueue<>();
+        int maximumPercentageBufferSize = 1000000;
+        Supplier<Boolean> isPercentageBufferOverflow = () -> percentageBuffer.size() > maximumPercentageBufferSize;
+        Runnable flushPercentageBuffer = () -> {
+            var l = percentageBuffer.stream().toList();
+            if (l.isEmpty()) { return; }
+            percentageBuffer.removeAll(l);
+            l.forEach(jProgressBar::setValue);
+        };
         percentageListener = updateGUIListenerFactory(
-                evt -> jProgressBar.setValue((int) evt.getNewValue()));
+                evt -> jProgressBar.setValue((int) evt.getNewValue()),
+                isPercentageBufferOverflow, flushPercentageBuffer, (evt) -> percentageBuffer.add((int)  evt.getNewValue()));
         // Adding new logs to console:
+
+        StringBuffer consoleBuffer = new StringBuffer();
+
+        int maximumConsoleBufferSize = 1000000;
+        Supplier<Boolean> isConsoleBufferOverflowed = () -> consoleBuffer.length() > maximumConsoleBufferSize;
+        Runnable flushConsoleBuffer = () -> {
+            int consoleBufferSize = consoleBuffer.length();
+            if (consoleBufferSize == 0) { return; }
+            consoleLog.addLines(consoleBuffer.substring(0, consoleBufferSize));
+            consoleBuffer.delete(0, consoleBufferSize);
+        };
         consoleLogListener = updateGUIListenerFactory(
-                evt -> consoleLog.addLine((String) evt.getNewValue()));
+                evt -> consoleLog.addLines((String) evt.getNewValue()), isConsoleBufferOverflowed, flushConsoleBuffer, evt -> consoleBuffer.append((String) evt.getNewValue()));
+
+        flushUpdatesGuiTimer = new Timer(100, _ -> {
+            flushPercentageBuffer.run();
+            flushConsoleBuffer.run();
+        });
+
         // Declaring clock timer:
         clockTimer = new Timer(clockRefreshTime, _ -> updateClock());
         // Backup finish strategy:
@@ -198,6 +232,8 @@ public class BackupWindow {
                     isClosingWindow = true;
                     // Stopping clockTimer:
                     clockTimer.stop();
+                    // Stopping flushTimer:
+                    flushUpdatesGuiTimer.stop();
                     // Stopping executor:
                     stopButton.doClick();
                     // Changing cursor:
@@ -209,16 +245,19 @@ public class BackupWindow {
         });
     }
 
-    private PropertyChangeListener updateGUIListenerFactory(Consumer<PropertyChangeEvent> updateGUIStrategy) {
+    private PropertyChangeListener updateGUIListenerFactory(Consumer<PropertyChangeEvent> updateGuiStrategy, Supplier<Boolean> isBufferOverflowed, Runnable flushStrategy, Consumer<PropertyChangeEvent> storeInBuffer) {
         return evt -> {
+            // Rejecting updating gui if window is closing:
+            if (isClosingWindow) { return; }
+            // Checking if caller is EDT, and updating GUI directly:
+            if (SwingUtilities.isEventDispatchThread()) { updateGuiStrategy.accept(evt); }
             try {
-                // Rejecting updating gui if window is closing:
-                if (isClosingWindow) { return; }
-                // Checking if caller is EDT, and scheduling task:
-                if (SwingUtilities.isEventDispatchThread()) {
-                    updateGUIStrategy.accept(evt);
-                } else {
-                    SwingUtilities.invokeAndWait(() -> updateGUIStrategy.accept(evt));
+                // Storing new data in buffer:
+                storeInBuffer.accept(evt);
+                // Checking if buffer overflows:
+                if (isBufferOverflowed.get()) {
+                    // Waiting for EDT thread:
+                    SwingUtilities.invokeAndWait(flushStrategy);
                 }
             } catch (InterruptedException | InvocationTargetException exc) { throw new RuntimeException(exc); }
         };
@@ -248,12 +287,17 @@ public class BackupWindow {
     }
 
     private void switchWindowStatus() {
-        // Starting/stopping clock:
+        // Starting/stopping clocks:
         if (windowStatus) {
             clockTimer.stop();
+            flushUpdatesGuiTimer.stop();
+            // Flushing the last portion of data:
+            Arrays.stream(flushUpdatesGuiTimer.getActionListeners()).forEach(
+                    a -> a.actionPerformed(null));
         } else {
             resetClock();
             clockTimer.start();
+            flushUpdatesGuiTimer.start();
         }
         // Switching a window to running/not running:
         startButton.setEnabled(windowStatus);

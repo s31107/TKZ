@@ -374,11 +374,11 @@ public class MirrorBackup implements BackupStrategy {
 
     // Strategies change the state of properties:
 
-    private synchronized void setConsole(String line) {
+    private void setConsole(String line) {
         propertyChange.firePropertyChange(ListenersTypes.CONSOLE.toString(), null, line + "\n");
     }
 
-    private synchronized void setProgress(int progress) {
+    private void setProgress(int progress) {
         propertyChange.firePropertyChange(ListenersTypes.PROGRESS.toString(), null, progress);
     }
 
