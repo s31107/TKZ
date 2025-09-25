@@ -14,6 +14,8 @@ public interface BackupStrategy {
     void stop();
     // Setting backup paths:
     void setPaths(List<SimplePair<String>> paths) throws BadPathsException;
+    // Setting is proceed with hidden elements:
+    void setIsCopyHiddenElements(boolean copyHiddenElements);
     // Property strategies for JTextArea, JProgressBar, Finish Backup strategy(buttons):
     void addPropertyListener(ListenersTypes type, PropertyChangeListener listener);
     void removePropertyListener(ListenersTypes type, PropertyChangeListener listener);

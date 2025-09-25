@@ -316,7 +316,7 @@ public class BackupWindow {
         } catch (IOException exc) { throw new RuntimeException(exc); }
     }
 
-    protected void show(BackupStrategy bStrategy, boolean isShutdownBefore) {
+    protected void show(BackupStrategy bStrategy, boolean isShutdownBefore, boolean isCopyHiddenElements) {
         // Initializing shutdown variable:
         isShutdown = isShutdownBefore;
         // Declaring backup strategy:
@@ -327,6 +327,8 @@ public class BackupWindow {
         backupStrategy.addPropertyListener(ListenersTypes.CONSOLE, consoleLogListener);
         backupStrategy.addPropertyListener(ListenersTypes.PROGRESS, percentageListener);
         backupStrategy.addPropertyListener(ListenersTypes.FINISH, finishBackupListener);
+        // Setting copy hidden element flag:
+        backupStrategy.setIsCopyHiddenElements(isCopyHiddenElements);
         // Executing backup:
         startButton.doClick();
     }

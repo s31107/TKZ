@@ -28,6 +28,8 @@ public class MirrorBackup implements BackupStrategy {
     private long fileSizes;
     private final AtomicBoolean isInterrupted;
     private FileHandler fileHandler;
+    private boolean isCopyHidden;
+    private volatile boolean isWorkingBackup;
     protected final Logger logger;
     protected static final String loggerFileName = "TKZMirrorLog";
     protected final ResourceBundle resourceBundle;
@@ -41,6 +43,10 @@ public class MirrorBackup implements BackupStrategy {
         resourceBundle = ResourceBundle.getBundle("MirrorBundles.BackupMessages");
         // Atomic sum of all paths:
         pathSizeSum = new LongAdder();
+        // Setting default value of proceeding with hidden elements:
+        isCopyHidden = true;
+        // Informs if backup is currently running:
+        isWorkingBackup = false;
         // Errors logger:
         logger = Logger.getLogger("BackupStrategies.Mirror.MirrorBackup");
         logger.setLevel(Level.ALL);
@@ -70,6 +76,7 @@ public class MirrorBackup implements BackupStrategy {
         // Resetting last backup flags and counters:
         isInterrupted.set(false);
         pathSizeSum.reset();
+        isWorkingBackup = true;
         // Resetting progress:
         setProgress(0);
         // Logging new file handler:
@@ -93,7 +100,16 @@ public class MirrorBackup implements BackupStrategy {
             private long filesSize = 0;
 
             @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                // Decision if proceed with specified subtree:
+                if (isNotProceedSubtree(dir)) { return FileVisitResult.SKIP_SUBTREE; }
+                return super.preVisitDirectory(dir, attrs);
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                // Decision if proceed with specified file:
+                if (isNotProceedFile(file)) { return FileVisitResult.CONTINUE; }
                 // Getting files size:
                 try {
                     filesSize += Files.readAttributes(
@@ -133,6 +149,8 @@ public class MirrorBackup implements BackupStrategy {
     }
 
     private void finishStrategy(Statistics stats) {
+        // Releasing flags:
+        isWorkingBackup = false;
         // Replacing null with default empty statistics:
         if (stats == null) { stats = new Statistics(); }
         // Printing statistics:
@@ -183,7 +201,9 @@ public class MirrorBackup implements BackupStrategy {
         FileVisitor<? super Path> fileCopyVisitor = new SimpleFileVisitor<>() {
 
             @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                // Decision if proceed with specified subtree:
+                if (isNotProceedSubtree(dir)) { return FileVisitResult.SKIP_SUBTREE; }
                 // Mechanism of creating missing directories:
                 // Interrupt backup check:
                 if (isInterrupted.get()) { return FileVisitResult.TERMINATE; }
@@ -206,7 +226,9 @@ public class MirrorBackup implements BackupStrategy {
             }
 
             @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                // Decision if proceed with specified file:
+                if (isNotProceedFile(file)) { return FileVisitResult.CONTINUE; }
                 // Mechanism of copying missing or different files:
                 // Interrupt backup check:
                 if (isInterrupted.get()) { return FileVisitResult.TERMINATE; }
@@ -251,7 +273,16 @@ public class MirrorBackup implements BackupStrategy {
         // Removing visitor:
         FileVisitor<? super Path> fileRemoveVisitor = new SimpleFileVisitor<>() {
             @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                // Decision if proceed with specified subtree:
+                if (isNotProceedSubtree(dir)) { return FileVisitResult.SKIP_SUBTREE; }
+                return super.preVisitDirectory(dir, attrs);
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                // Decision if proceed with specified file:
+                if (isNotProceedFile(file)) { return FileVisitResult.CONTINUE; }
                 // Interrupt backup check:
                 if (isInterrupted.get()) { return FileVisitResult.TERMINATE; }
                 // Checking if a path of the current file exists in source backup location:
@@ -302,6 +333,8 @@ public class MirrorBackup implements BackupStrategy {
         // Variable which stores information if there is a need to check for additional files in a destination path:
         boolean isPureBackup = false;
         try {
+            // Skipping path if it doesn't meet requirements:
+            if (isNotProceedSubtree(sourcePath)) { return statistics; }
             // Creating directory of a source path last directory name:
             if (!Files.isDirectory(resolvedDestinationPath, LinkOption.NOFOLLOW_LINKS)) {
                 isPureBackup = true;
@@ -344,6 +377,23 @@ public class MirrorBackup implements BackupStrategy {
         // Closing file handler:
         logger.removeHandler(fileHandler);
         fileHandler.close();
+    }
+
+    protected boolean isNotProceedFile(Path file) throws IOException {
+        // Skipping if file is hidden and copying hidden files is forbidden:
+        return !isCopyHidden && Files.isHidden(file);
+    }
+
+    protected boolean isNotProceedSubtree(Path subtree) throws IOException {
+        // Skipping if directory is hidden and copying hidden directories is forbidden:
+        return !isCopyHidden && Files.isHidden(subtree);
+    }
+
+    @Override
+    public void setIsCopyHiddenElements(boolean copyHiddenElements) {
+        // Checking if backup is not running:
+        if (isWorkingBackup) { throw new IllegalStateException("Cannot modify flags during backup!"); }
+        isCopyHidden = copyHiddenElements;
     }
 
     @Override

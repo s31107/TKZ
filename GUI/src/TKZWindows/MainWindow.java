@@ -29,6 +29,7 @@ public class MainWindow {
     private final static int xWindowBorderProp = 12;
     private final static int yWindowBorderProp = 10;
     private final static String shutdownAttributeName = "ShutDown";
+    private final static String hiddenAttributeName = "Hidden";
     private final static String backupStrategyAttributeName = "BackupStrategy";
     protected final ResourceBundle contentsResourceBundle;
     protected final ProfileManager profileManager;
@@ -101,11 +102,16 @@ public class MainWindow {
         JScrollPane jScrollPane = new JScrollPane(jTable);
         jScrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
         mainPanel.add(jScrollPane);
-        // CheckBox:
-        JCheckBox turnOffCheckBox = new JCheckBox(contentsResourceBundle.getString("turnOff"));
+        // CheckBoxes:
         JPanel checkBoxPanel = new JPanel();
         checkBoxPanel.setLayout(new BoxLayout(checkBoxPanel, BoxLayout.X_AXIS));
+        // Turn off checkBox:
+        JCheckBox turnOffCheckBox = new JCheckBox(contentsResourceBundle.getString("turnOff"));
         checkBoxPanel.add(turnOffCheckBox);
+        checkBoxPanel.add(Box.createHorizontalGlue());
+        // Backup hidden files checkbox:
+        JCheckBox hiddenFilesCheckBox = new JCheckBox(contentsResourceBundle.getString("hiddenFiles"));
+        checkBoxPanel.add(hiddenFilesCheckBox);
         checkBoxPanel.add(Box.createHorizontalGlue());
         mainPanel.add(checkBoxPanel);
         // JButton:
@@ -132,7 +138,8 @@ public class MainWindow {
         jFrame.setTitle(contentsResourceBundle.getString("mainWindowTitle"));
         // Opening last used profile if exists:
         profileManager.openLastUsedFile().ifPresent(fileContent ->
-                setContentFromProfileManager(fileContent, jTable, backUpTypesModel, turnOffCheckBox));
+                setContentFromProfileManager(fileContent, jTable, backUpTypesModel, turnOffCheckBox,
+                        hiddenFilesCheckBox));
         // Connections:
         // Popup Menu:
         jScrollPane.addMouseListener(new MouseAdapter() {
@@ -144,10 +151,13 @@ public class MainWindow {
         });
         // Menu items:
         saveMenuItem.addActionListener(_ -> saveStrategy(false, jTable,
-                (String) Objects.requireNonNull(backUpTypes.getSelectedItem()), turnOffCheckBox.isSelected(), jFrame));
+                (String) Objects.requireNonNull(backUpTypes.getSelectedItem()), turnOffCheckBox.isSelected(),
+                hiddenFilesCheckBox.isSelected(), jFrame));
         saveAsMenuItem.addActionListener(_ -> saveStrategy(true, jTable,
-                (String) Objects.requireNonNull(backUpTypes.getSelectedItem()), turnOffCheckBox.isSelected(), jFrame));
-        openMenuItem.addActionListener(_ -> openProfile(jTable, turnOffCheckBox, backUpTypesModel, jFrame));
+                (String) Objects.requireNonNull(backUpTypes.getSelectedItem()), turnOffCheckBox.isSelected(),
+                hiddenFilesCheckBox.isSelected(), jFrame));
+        openMenuItem.addActionListener(_ -> openProfile(jTable, turnOffCheckBox, hiddenFilesCheckBox,
+                backUpTypesModel, jFrame));
         aboutMenuItem.addActionListener(_ -> openDocumentation());
         // Button:
         execBackupButton.addActionListener(_ -> {
@@ -163,7 +173,7 @@ public class MainWindow {
                     // Setting paths from JTable:
                     chosenBackup.setPaths(paths);
                     // Switching prepared backup instance to BackupWindow:
-                    backupWindow.show(chosenBackup, turnOffCheckBox.isSelected());
+                    backupWindow.show(chosenBackup, turnOffCheckBox.isSelected(), hiddenFilesCheckBox.isSelected());
                     // Hiding window:
                     jFrame.setVisible(false);
                 } catch (BadPathsException exc) {
@@ -212,12 +222,12 @@ public class MainWindow {
     }
 
     private void saveStrategy(boolean isSaveAs, PathJTable jTable, String backupType,
-                              Boolean isShutdown, Component parent) {
+                              Boolean isShutdown, Boolean isHidden, Component parent) {
         jTable.getPaths().ifPresentOrElse(paths -> {
             try {
                 // Preparing attributes:
                 Map<String, String> attr = Map.of(shutdownAttributeName, isShutdown.toString(),
-                        backupStrategyAttributeName, backupType);
+                        hiddenAttributeName, isHidden.toString(), backupStrategyAttributeName, backupType);
                 // Invoking proper method from profileManager:
                 Optional<File> file = isSaveAs ? profileManager.saveAs(paths, attr)
                         : profileManager.save(paths, attr);
@@ -237,12 +247,13 @@ public class MainWindow {
                 contentsResourceBundle.getString("error"), JOptionPane.ERROR_MESSAGE));
     }
 
-    private void openProfile(PathJTable jTable, JCheckBox checkBox,
+    private void openProfile(PathJTable jTable, JCheckBox shutdownCheckBox, JCheckBox hiddenFilesCheckBox,
                              DefaultComboBoxModel<String> comboBoxModel, Component parent) {
         // Getting content from a window:
         Optional<List<SimplePair<String>>> content = jTable.getPaths();
         String backupType = (String) Objects.requireNonNull(comboBoxModel.getSelectedItem());
-        Map<String, String> attr = Map.of(shutdownAttributeName, Boolean.toString(checkBox.isSelected()),
+        Map<String, String> attr = Map.of(shutdownAttributeName, Boolean.toString(shutdownCheckBox.isSelected()),
+                hiddenAttributeName, Boolean.toString(hiddenFilesCheckBox.isSelected()),
                 backupStrategyAttributeName, backupType);
         // Checking if content is equals to save in file:
         if (content.isEmpty() || !profileManager.isContentIdentical(content.get(), attr)) {
@@ -252,13 +263,13 @@ public class MainWindow {
                     contentsResourceBundle.getString("question"), JOptionPane.YES_NO_CANCEL_OPTION);
             // Saving content if necessary:
             if (choice == JOptionPane.YES_OPTION) { saveStrategy(false, jTable, backupType,
-                    checkBox.isSelected(), parent); }
+                    shutdownCheckBox.isSelected(), hiddenFilesCheckBox.isSelected(), parent); }
             else if (choice == JOptionPane.CANCEL_OPTION) { return; }
         }
         try {
             // Opening a selected file and prints it's content to window:
             profileManager.open().ifPresent(pair -> setContentFromProfileManager(
-                    pair, jTable, comboBoxModel, checkBox));
+                    pair, jTable, comboBoxModel, shutdownCheckBox, hiddenFilesCheckBox));
         } catch (FileFormatException exc) {
             // Exceptions to selecting a wrong file:
             JOptionPane.showMessageDialog(parent, contentsResourceBundle.getString("wrongFileSelection"),
@@ -273,7 +284,7 @@ public class MainWindow {
 
     private static void setContentFromProfileManager(
             ExtendedPair<List<SimplePair<String>>, Map<String, String>> pair, PathJTable jTable,
-            DefaultComboBoxModel<String> comboBoxModel, JCheckBox checkBox) {
+            DefaultComboBoxModel<String> comboBoxModel, JCheckBox isShutdownCheckBox, JCheckBox isHiddenCheckBox) {
         // Setting paths to JTable:
         jTable.setPaths(pair.key());
         // Setting backup strategy combobox:
@@ -281,7 +292,9 @@ public class MainWindow {
         // Checking if combobox contain backup strategy from a file:
         if (comboBoxModel.getIndexOf(item) != -1) { comboBoxModel.setSelectedItem(item); }
         // Setting shutdown checkbox:
-        checkBox.setSelected(Boolean.parseBoolean(pair.val().get(shutdownAttributeName)));
+        isShutdownCheckBox.setSelected(Boolean.parseBoolean(pair.val().get(shutdownAttributeName)));
+        // Setting is hidden checkbox:
+        isHiddenCheckBox.setSelected(Boolean.parseBoolean(pair.val().get(hiddenAttributeName)));
     }
 
     protected void show() { jFrame.setVisible(true); }
