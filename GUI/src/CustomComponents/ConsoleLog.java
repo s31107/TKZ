@@ -210,8 +210,9 @@ public class ConsoleLog extends JPanel {
         jTextArea.append(line);
         // Checking if console log hasn't exceeded maximum lines number:
         try {
-            // Declaring document variables:
+            // Declaring document:
             Document doc = jTextArea.getDocument();
+            // Getting line count:
             int lineCount = jTextArea.getLineCount();
             // Checking lines number:
             if (lineCount > maxLength) {

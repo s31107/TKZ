@@ -4,6 +4,7 @@ import API.BackupStrategy;
 import API.IconsManager;
 import CustomComponents.ConsoleLog;
 import CustomComponents.ShutdownDialog;
+import Utils.ExtendedPair;
 import Utils.ListenersTypes;
 
 import javax.swing.*;
@@ -26,6 +27,9 @@ import java.util.Queue;
 
 public class BackupWindow {
     private final static int clockRefreshTime = 1000;
+    private final static int flushRefreshTime = 100;
+    private final static int maximumProgressBarDataBufferSize = (int) Math.pow(2, 10);
+    private final static int maximumConsoleLogDataBufferSize = (int) Math.pow(2, 20);
     private final static DateTimeFormatter clockFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
     private final static double xWindowPattern = 1680.;
     private final static double yWindowPattern = 1050.;
@@ -150,42 +154,21 @@ public class BackupWindow {
             backupStrategy.execute();
         });
         // Listeners:
+        // Creating listeners strategies: specified component: property change listener strategy and flush strategy:
+        ExtendedPair<PropertyChangeListener, Runnable> progressBarStrategiesPair = createProgressBarListenerFactory(
+                jProgressBar);
+        ExtendedPair<PropertyChangeListener, Runnable> consoleLogStrategiesPair = createConsoleLogListenerFactory(
+                consoleLog);
         // Updating progress bar:
-
-        Queue<Integer> percentageBuffer = new ConcurrentLinkedQueue<>();
-        int maximumPercentageBufferSize = (int) Math.pow(2, 20);
-        Supplier<Boolean> isPercentageBufferOverflow = () -> percentageBuffer.size() > maximumPercentageBufferSize;
-        // Hiding NullPointerException, because EDT is the only thread to take from queue:
-        @SuppressWarnings("all")
-        Runnable flushPercentageBuffer = () -> {
-            if (percentageBuffer.isEmpty()) { return; }
-            for (int s = percentageBuffer.size(); s > 0; --s) {
-                jProgressBar.setValue(percentageBuffer.poll());
-            }
-        };
-        percentageListener = updateGUIListenerFactory(
-                evt -> jProgressBar.setValue((int) evt.getNewValue()),
-                isPercentageBufferOverflow, flushPercentageBuffer, (evt) -> percentageBuffer.add((int)  evt.getNewValue()));
+        percentageListener = progressBarStrategiesPair.key();
         // Adding new logs to console:
-
-        StringBuffer consoleBuffer = new StringBuffer();
-
-        int maximumConsoleBufferSize = (int) (Math.pow(2, 20));
-        Supplier<Boolean> isConsoleBufferOverflowed = () -> consoleBuffer.length() > maximumConsoleBufferSize;
-        Runnable flushConsoleBuffer = () -> {
-            int consoleBufferSize = consoleBuffer.length();
-            if (consoleBufferSize == 0) { return; }
-            consoleLog.addLines(consoleBuffer.substring(0, consoleBufferSize));
-            consoleBuffer.delete(0, consoleBufferSize);
-        };
-        consoleLogListener = updateGUIListenerFactory(
-                evt -> consoleLog.addLines((String) evt.getNewValue()), isConsoleBufferOverflowed, flushConsoleBuffer, evt -> consoleBuffer.append((String) evt.getNewValue()));
-
-        flushUpdatesGuiTimer = new Timer(100, _ -> {
-            flushPercentageBuffer.run();
-            flushConsoleBuffer.run();
+        consoleLogListener = consoleLogStrategiesPair.key();
+        // Declaring timer flush strategy:
+        flushUpdatesGuiTimer = new Timer(flushRefreshTime, _ -> {
+            // Invoking flush strategies of two components:
+            progressBarStrategiesPair.val().run();
+            consoleLogStrategiesPair.val().run();
         });
-
         // Declaring clock timer:
         clockTimer = new Timer(clockRefreshTime, _ -> updateClock());
         // Backup finish strategy:
@@ -246,9 +229,68 @@ public class BackupWindow {
         });
     }
 
+    private ExtendedPair<PropertyChangeListener, Runnable> createProgressBarListenerFactory(JProgressBar progressBar) {
+        // Declaring buffer:
+        Queue<Integer> percentageBuffer = new ConcurrentLinkedQueue<>();
+        // Declaring function which determines whether buffer is overflowed:
+        Supplier<Boolean> isPercentageBufferOverflow = () -> percentageBuffer.size() > maximumProgressBarDataBufferSize;
+        // Declaring function which applying gathered data (flush) to gui:
+        Runnable flushPercentageBuffer = () -> {
+            // Checking if buffer has already been flushed:
+            if (percentageBuffer.isEmpty()) { return; }
+            Integer value;
+            // Taking only elements which are currently in buffer:
+            for (int s = percentageBuffer.size(); s > 0; --s) {
+                // Retrieving element:
+                value = percentageBuffer.poll();
+                // In case some other task retrieves data from buffer:
+                if (value == null) { throw new IndexOutOfBoundsException("Buffer index out of bounds!"); }
+                // Updating progress bar:
+                progressBar.setValue(value);
+            }
+        };
+        // Declaring function which updates component directly:
+        Consumer<PropertyChangeEvent> updateGuiStrategy =
+                evt -> progressBar.setValue((int) evt.getNewValue());
+        // Declaring function which saves data in buffer:
+        Consumer<PropertyChangeEvent> storeInBuffer =
+                evt -> percentageBuffer.add((int) evt.getNewValue());
+        // Crating custom property change listener:
+        return new ExtendedPair<>(updateGUIListenerFactory(updateGuiStrategy, isPercentageBufferOverflow,
+                flushPercentageBuffer, storeInBuffer), flushPercentageBuffer);
+    }
+
+    private ExtendedPair<PropertyChangeListener, Runnable> createConsoleLogListenerFactory(ConsoleLog consoleLog) {
+        // Declaring buffer:
+        StringBuffer consoleBuffer = new StringBuffer();
+        // Declaring function which determines whether buffer is overflowed:
+        Supplier<Boolean> isConsoleBufferOverflowed = () -> consoleBuffer.length() > maximumConsoleLogDataBufferSize;
+        // Declaring function which applying gathered data (flush) to gui:
+        Runnable flushConsoleBuffer = () -> {
+            // Setting pointer to current end buffer data:
+            int consoleBufferSize = consoleBuffer.length();
+            // Checking if buffer has already been flushed:
+            if (consoleBufferSize == 0) { return; }
+            // Updating console log with the elements which are currently in buffer:
+            consoleLog.addLines(consoleBuffer.substring(0, consoleBufferSize));
+            // Clearing used data:
+            consoleBuffer.delete(0, consoleBufferSize);
+        };
+        // Declaring function which updates component directly:
+        Consumer<PropertyChangeEvent> updateGuiStrategy =
+                evt -> consoleLog.addLines((String) evt.getNewValue());
+        // Declaring function which saves data in buffer:
+        Consumer<PropertyChangeEvent> storeInBuffer =
+                evt -> consoleBuffer.append((String) evt.getNewValue());
+        // Crating custom property change listener:
+        return new ExtendedPair<>(updateGUIListenerFactory(updateGuiStrategy, isConsoleBufferOverflowed,
+                flushConsoleBuffer, storeInBuffer), flushConsoleBuffer);
+    }
+
     private PropertyChangeListener updateGUIListenerFactory(
             Consumer<PropertyChangeEvent> updateGuiStrategy, Supplier<Boolean> isBufferOverflowed,
             Runnable flushStrategy, Consumer<PropertyChangeEvent> storeInBuffer) {
+        // Returning custom property change listener:
         return evt -> {
             // Rejecting updating gui if window is closing:
             if (isClosingWindow) { return; }
@@ -294,6 +336,7 @@ public class BackupWindow {
         if (windowStatus) {
             clockTimer.stop();
             flushUpdatesGuiTimer.stop();
+            flushUpdatesGuiTimer.restart();
             // Flushing the last portion of data:
             Arrays.stream(flushUpdatesGuiTimer.getActionListeners()).forEach(
                     a -> a.actionPerformed(null));
@@ -321,5 +364,7 @@ public class BackupWindow {
         clock = LocalTime.of(0, 0, 0);
         // Updating GUI:
         labelClock.setText(clock.format(clockFormatter));
+        // Resetting clock:
+        clockTimer.restart();
     }
 }
