@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.Queue;
-import java.util.stream.Collectors;
 
 public class BackupWindow {
     private final static int clockRefreshTime = 1000;
@@ -154,13 +153,15 @@ public class BackupWindow {
         // Updating progress bar:
 
         Queue<Integer> percentageBuffer = new ConcurrentLinkedQueue<>();
-        int maximumPercentageBufferSize = 1000000;
+        int maximumPercentageBufferSize = (int) Math.pow(2, 20);
         Supplier<Boolean> isPercentageBufferOverflow = () -> percentageBuffer.size() > maximumPercentageBufferSize;
+        // Hiding NullPointerException, because EDT is the only thread to take from queue:
+        @SuppressWarnings("all")
         Runnable flushPercentageBuffer = () -> {
-            var l = percentageBuffer.stream().toList();
-            if (l.isEmpty()) { return; }
-            percentageBuffer.removeAll(l);
-            l.forEach(jProgressBar::setValue);
+            if (percentageBuffer.isEmpty()) { return; }
+            for (int s = percentageBuffer.size(); s > 0; --s) {
+                jProgressBar.setValue(percentageBuffer.poll());
+            }
         };
         percentageListener = updateGUIListenerFactory(
                 evt -> jProgressBar.setValue((int) evt.getNewValue()),
@@ -169,7 +170,7 @@ public class BackupWindow {
 
         StringBuffer consoleBuffer = new StringBuffer();
 
-        int maximumConsoleBufferSize = 1000000;
+        int maximumConsoleBufferSize = (int) (Math.pow(2, 20));
         Supplier<Boolean> isConsoleBufferOverflowed = () -> consoleBuffer.length() > maximumConsoleBufferSize;
         Runnable flushConsoleBuffer = () -> {
             int consoleBufferSize = consoleBuffer.length();
@@ -245,7 +246,9 @@ public class BackupWindow {
         });
     }
 
-    private PropertyChangeListener updateGUIListenerFactory(Consumer<PropertyChangeEvent> updateGuiStrategy, Supplier<Boolean> isBufferOverflowed, Runnable flushStrategy, Consumer<PropertyChangeEvent> storeInBuffer) {
+    private PropertyChangeListener updateGUIListenerFactory(
+            Consumer<PropertyChangeEvent> updateGuiStrategy, Supplier<Boolean> isBufferOverflowed,
+            Runnable flushStrategy, Consumer<PropertyChangeEvent> storeInBuffer) {
         return evt -> {
             // Rejecting updating gui if window is closing:
             if (isClosingWindow) { return; }
